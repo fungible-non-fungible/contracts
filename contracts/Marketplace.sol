@@ -15,6 +15,8 @@ contract Marketplace is Ownable {
     mapping(address => address[]) public pairs;
     mapping(address => bool) public fnfts; // Oleh add FNFT address after minting
 
+    event PairCreated(address indexed pair, address indexed user);
+
     constructor(
         address _factory,
         address _router,
@@ -47,7 +49,11 @@ contract Marketplace is Ownable {
             block.timestamp + 10 minutes
         );
 
-        pairs[msg.sender].push(IPancakeFactory(factory).getPair(fnft, wbnb));
+        address pair = IPancakeFactory(factory).getPair(fnft, wbnb);
+
+        pairs[msg.sender].push(pair);
+
+        emit PairCreated(pair, msg.sender);
     }
 
     function buyFNFT(
