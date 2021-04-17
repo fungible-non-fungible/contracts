@@ -4,24 +4,37 @@ pragma solidity >=0.6.2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
 
 
 import "./interfaces/IPancakeFactory.sol";
 import "./interfaces/IPancakeRouter.sol";
-// import "./interfaces/IERC20.sol";
 import "./FNFT.sol";
+import "./NFT.sol";
 
 contract Marketplace is Ownable {
     using SafeMath for uint256;
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIds;
 
     address public factory;
     address public router;
     address public wbnb;
     uint256 public symbolFee;
     uint256 public mintingFee;
+    ERC721 public fnf;
+
+    struct userStruct {
+        uint256 tokenId;
+        string _tokenURI; 
+        uint256 amount;
+        uint256 minLevel;
+        string symbol;
+    }
 
     mapping(address => address[]) public pairs;
     mapping(address => bool) public fnfts;
+    mapping(address => mapping(uint256 => userStruct)) public userData;
 
 
 
@@ -35,6 +48,7 @@ contract Marketplace is Ownable {
         wbnb = _wbnb;
         symbolFee = 1000000;
         mintingFee = 5000000;
+        fnf = new NFT();
     }
 
     modifier correctFNFT(address fnft) {
@@ -154,9 +168,7 @@ contract Marketplace is Ownable {
         wbnb = _wbnb;
     }
 
-    function mint(address nft, uint256 nftId, uint256 amount, uint256 minLevel, string memory symbol) payable external {
-        require(minLevel > amount / 2 * 10**18 + 1, 'Level so low');
-        require(minLevel <= amount * 90 / 100, 'Level so high');
+    function mint(address nft, uint256 nftId, uint256 amount, string memory symbol) payable external {
         uint256 res;
         string memory tokenName = 'FNFT';
 
@@ -171,5 +183,23 @@ contract Marketplace is Ownable {
         ERC20 newToken = new FNFT('FNFT', symbol, amount);
         fnfts[address(newToken)] = true;
         this.createPairAndAddLiquidity{value: res}(address(newToken));
+    }
+
+    function createNFT(string memory _tokenURI, uint256 amount, uint256 minLevel, string memory symbol) payable external {
+        require(msg.value > 7000000, 'Not enough msg.value');
+        require(minLevel > amount / 2 * 10**18 + 1, 'Level so low');
+        require(minLevel <= amount * 90 / 100, 'Level so high');
+
+        _tokenIds.increment();
+
+        uint256 currentId = _tokenIds.current();
+
+        // fnf.awardItem(msg.sender, _tokenURI); //NEED FIX!
+        this.mint(address(fnf), currentId, amount, symbol);
+        userData[msg.sender][currentId].tokenId = currentId;
+        userData[msg.sender][currentId]._tokenURI = _tokenURI;
+        userData[msg.sender][currentId].amount = amount;
+        userData[msg.sender][currentId].minLevel = minLevel;
+        userData[msg.sender][currentId].symbol = symbol;
     }
 }
