@@ -2,18 +2,28 @@
 pragma solidity >=0.6.2;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+
 
 import "./interfaces/IPancakeFactory.sol";
 import "./interfaces/IPancakeRouter.sol";
-import "./interfaces/IERC20.sol";
+// import "./interfaces/IERC20.sol";
+import "./FNFT.sol";
 
 contract Marketplace is Ownable {
+    using SafeMath for uint256;
+
     address public factory;
     address public router;
     address public wbnb;
+    uint256 public symbolFee;
+    uint256 public mintingFee;
 
     mapping(address => address[]) public pairs;
-    mapping(address => bool) public fnfts; // Oleh add FNFT address after minting
+    mapping(address => bool) public fnfts;
+
+
 
     constructor(
         address _factory,
@@ -23,6 +33,8 @@ contract Marketplace is Ownable {
         factory = _factory;
         router = _router;
         wbnb = _wbnb;
+        symbolFee = 1000000;
+        mintingFee = 5000000;
     }
 
     modifier correctFNFT(address fnft) {
@@ -140,5 +152,24 @@ contract Marketplace is Ownable {
         require(_wbnb != factory, "Factory address");
 
         wbnb = _wbnb;
+    }
+
+    function mint(address nft, uint256 nftId, uint256 amount, uint256 minLevel, string memory symbol) payable external {
+        require(minLevel > amount / 2 * 10**18 + 1, 'Level so low');
+        require(minLevel <= amount * 90 / 100, 'Level so high');
+        uint256 res;
+        string memory tokenName = 'FNFT';
+
+        if (keccak256(abi.encodePacked((symbol))) != keccak256(abi.encodePacked((tokenName)))) {
+            res = msg.value.sub(mintingFee + symbolFee);
+        }
+        else {
+            res = msg.value.sub(mintingFee);
+        }
+        IERC721(nft).safeTransferFrom(msg.sender, address(this), nftId);
+
+        ERC20 newToken = new FNFT('FNFT', symbol, amount);
+        fnfts[address(newToken)] = true;
+        this.createPairAndAddLiquidity{value: res}(address(newToken));
     }
 }
