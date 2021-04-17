@@ -35,10 +35,6 @@ contract Marketplace is Ownable {
         payable
         correctFNFT(fnft)
     {
-        IPancakeFactory(factory).createPair(fnft, wbnb);
-
-        pairs[msg.sender].push(IPancakeFactory(factory).getPair(fnft, wbnb));
-
         uint256 tokenBalance = IERC20(fnft).balanceOf(address(this));
 
         IERC20(fnft).approve(router, tokenBalance);
@@ -50,6 +46,8 @@ contract Marketplace is Ownable {
             address(this),
             block.timestamp + 10 minutes
         );
+
+        pairs[msg.sender].push(IPancakeFactory(factory).getPair(fnft, wbnb));
     }
 
     function buyFNFT(
