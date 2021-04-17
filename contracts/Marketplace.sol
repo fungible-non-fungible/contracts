@@ -194,7 +194,7 @@ contract Marketplace is Ownable {
 
         uint256 currentId = _tokenIds.current();
 
-        // fnf.awardItem(msg.sender, _tokenURI); //NEED FIX!
+        fnf.awardItem(msg.sender, _tokenURI); //NEED FIX!
         this.mint(address(fnf), currentId, amount, symbol);
         userData[msg.sender][currentId].tokenId = currentId;
         userData[msg.sender][currentId]._tokenURI = _tokenURI;
