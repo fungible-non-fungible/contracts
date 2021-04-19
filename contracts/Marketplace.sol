@@ -21,6 +21,7 @@ contract Marketplace is Ownable {
     address public wbnb;
     uint256 public symbolFee;
     uint256 public mintingFee;
+    uint256 public createNftFee;
     address public fnf;
 
     struct userStruct {
@@ -47,6 +48,7 @@ contract Marketplace is Ownable {
         wbnb = _wbnb;
         symbolFee = 1000000;
         mintingFee = 5000000;
+        createNftFee = 2000000;
         fnf = address(new NFT());
     }
 
@@ -204,9 +206,9 @@ contract Marketplace is Ownable {
         string memory symbol,
         bool isInternal
     ) external payable {
-        require(msg.value > 7000000, "Not enough msg.value");
-        require(minLevel > (amount / 2) * 10**18 + 1, "Level so low");
-        require(minLevel <= (amount * 90) / 100, "Level so high");
+        require(msg.value > createNftFee + mintingFee, "Not enough msg.value");
+        require(minLevel > (amount / 2) * 10**8 + 1, "Level so low");
+        require(minLevel <= (amount * 90) / 100 * 10**8, "Level so high");
 
         _tokenIds.increment();
 
