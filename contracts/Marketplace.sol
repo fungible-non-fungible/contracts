@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-
 import "./interfaces/IPancakeFactory.sol";
 import "./interfaces/IPancakeRouter.sol";
 import "./FNFT.sol";
@@ -22,11 +21,11 @@ contract Marketplace is Ownable {
     address public wbnb;
     uint256 public symbolFee;
     uint256 public mintingFee;
-    ERC721 public fnf;
+    address public fnf;
 
     struct userStruct {
         uint256 tokenId;
-        string _tokenURI; 
+        string _tokenURI;
         uint256 amount;
         uint256 minLevel;
         string symbol;
@@ -35,8 +34,6 @@ contract Marketplace is Ownable {
     mapping(address => address[]) public pairs;
     mapping(address => bool) public fnfts;
     mapping(address => mapping(uint256 => userStruct)) public userData;
-
-
 
     constructor(
         address _factory,
@@ -48,7 +45,7 @@ contract Marketplace is Ownable {
         wbnb = _wbnb;
         symbolFee = 1000000;
         mintingFee = 5000000;
-        fnf = new NFT();
+        fnf = address(new NFT());
     }
 
     modifier correctFNFT(address fnft) {
@@ -168,34 +165,51 @@ contract Marketplace is Ownable {
         wbnb = _wbnb;
     }
 
-    function mint(address nft, uint256 nftId, uint256 amount, string memory symbol) payable external {
+    function mint(
+        address nft,
+        uint256 nftId,
+        uint256 amount,
+        string memory symbol,
+        bool isInternal
+    ) external payable {
         uint256 res;
-        string memory tokenName = 'FNFT';
+        string memory tokenName = "FNFT";
 
-        if (keccak256(abi.encodePacked((symbol))) != keccak256(abi.encodePacked((tokenName)))) {
+        if (
+            keccak256(abi.encodePacked((symbol))) !=
+            keccak256(abi.encodePacked((tokenName)))
+        ) {
             res = msg.value.sub(mintingFee + symbolFee);
-        }
-        else {
+        } else {
             res = msg.value.sub(mintingFee);
         }
-        IERC721(nft).safeTransferFrom(msg.sender, address(this), nftId);
 
-        ERC20 newToken = new FNFT('FNFT', symbol, amount);
+        if (isInternal) {
+            IERC721(nft).safeTransferFrom(msg.sender, address(this), nftId);
+        }
+
+        ERC20 newToken = new FNFT("FNFT", symbol, amount);
         fnfts[address(newToken)] = true;
         this.createPairAndAddLiquidity{value: res}(address(newToken));
     }
 
-    function createNFT(string memory _tokenURI, uint256 amount, uint256 minLevel, string memory symbol) payable external {
-        require(msg.value > 7000000, 'Not enough msg.value');
-        require(minLevel > amount / 2 * 10**18 + 1, 'Level so low');
-        require(minLevel <= amount * 90 / 100, 'Level so high');
+    function createNFT(
+        string memory _tokenURI,
+        uint256 amount,
+        uint256 minLevel,
+        string memory symbol,
+        bool isInternal
+    ) external payable {
+        require(msg.value > 7000000, "Not enough msg.value");
+        require(minLevel > (amount / 2) * 10**18 + 1, "Level so low");
+        require(minLevel <= (amount * 90) / 100, "Level so high");
 
         _tokenIds.increment();
 
         uint256 currentId = _tokenIds.current();
 
-        fnf.awardItem(msg.sender, _tokenURI); //NEED FIX!
-        this.mint(address(fnf), currentId, amount, symbol);
+        NFT(fnf).awardItem(address(this), _tokenURI);
+        this.mint(address(fnf), currentId, amount, symbol, isInternal);
         userData[msg.sender][currentId].tokenId = currentId;
         userData[msg.sender][currentId]._tokenURI = _tokenURI;
         userData[msg.sender][currentId].amount = amount;
