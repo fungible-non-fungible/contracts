@@ -6,13 +6,16 @@ import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract NFT is ERC721, Ownable {
-    using Strings for uint256;
-    mapping(uint256 => string) private _tokenURIs;
-    string private _baseURIextended;
     using Counters for Counters.Counter;
+    using Strings for uint256;
+
     Counters.Counter private _tokenIds;
 
-    constructor() ERC721("FungibleNonFungible", "FNF") {}
+    mapping(uint256 => string) private _tokenURIs;
+
+    string private _baseURIextended;
+
+    constructor() ERC721("Fungible Non Fungible", "FNF") {}
 
     function setBaseURI(string memory baseURI_) external onlyOwner() {
         _baseURIextended = baseURI_;
@@ -48,15 +51,14 @@ contract NFT is ERC721, Ownable {
         string memory _tokenURI = _tokenURIs[tokenId];
         string memory base = _baseURI();
 
-        // If there is no base URI, return the token URI.
         if (bytes(base).length == 0) {
             return _tokenURI;
         }
-        // If both are set, concatenate the baseURI and tokenURI (via abi.encodePacked).
+
         if (bytes(_tokenURI).length > 0) {
             return string(abi.encodePacked(base, _tokenURI));
         }
-        // If there is a baseURI but no tokenURI, concatenate the tokenID to the baseURI.
+
         return string(abi.encodePacked(base, tokenId.toString()));
     }
 
@@ -67,6 +69,7 @@ contract NFT is ERC721, Ownable {
         _tokenIds.increment();
 
         uint256 newItemId = _tokenIds.current();
+
         _mint(user, newItemId);
         _setTokenURI(newItemId, _tokenURI);
 

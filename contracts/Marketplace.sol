@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 import "./interfaces/IPancakeFactory.sol";
@@ -14,15 +15,16 @@ import "./NFT.sol";
 contract Marketplace is Ownable {
     using SafeMath for uint256;
     using Counters for Counters.Counter;
+
     Counters.Counter private _tokenIds;
 
     address public factory;
     address public router;
     address public wbnb;
+    address public fnf;
     uint256 public symbolFee;
     uint256 public mintingFee;
     uint256 public createNftFee;
-    address public fnf;
 
     struct userStruct {
         uint256 tokenId;
@@ -37,19 +39,52 @@ contract Marketplace is Ownable {
     mapping(address => mapping(uint256 => userStruct)) public userData;
 
     event PairCreated(address indexed pair, address indexed user);
+    event LiquidityAdded(
+        address indexed pair,
+        address indexed user,
+        uint256 bnbValue,
+        uint256 tokensValue
+    );
+    event FactoryChanged(
+        address indexed oldFactory,
+        address indexed newFactory
+    );
+    event RouterChanged(address indexed oldRouter, address indexed newRouter);
+    event WBNBChanged(address indexed oldWBNB, address indexed newWBNB);
+    event TokensMinted(
+        address nft,
+        uint256 nftId,
+        address token,
+        uint256 amount,
+        string indexed symbol
+    );
+    event NFTCreated(address fnf, uint256 nftId, string indexed _tokenURI);
+    event MintingFeeChanged(
+        uint256 indexed oldMintingFee,
+        uint256 indexed newMintingFee
+    );
+    event SymbolFeeChanged(
+        uint256 indexed oldSymbolFee,
+        uint256 indexed newSymbolFee
+    );
+    event CreateNftFeeChanged(
+        uint256 indexed oldCreateNftFee,
+        uint256 indexed newCreateNftFee
+    );
 
     constructor(
         address _factory,
         address _router,
-        address _wbnb
+        address _wbnb,
+        address _nft
     ) {
         factory = _factory;
         router = _router;
         wbnb = _wbnb;
+        fnf = _nft;
         symbolFee = 1000000;
         mintingFee = 5000000;
         createNftFee = 2000000;
-        fnf = address(new NFT());
     }
 
     modifier correctFNFT(address fnft) {
@@ -58,7 +93,7 @@ contract Marketplace is Ownable {
     }
 
     function createPairAndAddLiquidity(address fnft)
-        external
+        public
         payable
         correctFNFT(fnft)
     {
@@ -79,6 +114,7 @@ contract Marketplace is Ownable {
         pairs[msg.sender].push(pair);
 
         emit PairCreated(pair, msg.sender);
+        emit LiquidityAdded(pair, msg.sender, msg.value, tokenBalance);
     }
 
     function buyFNFT(
@@ -148,7 +184,11 @@ contract Marketplace is Ownable {
         require(_factory != wbnb, "WBNB address");
         require(_factory != router, "Router address");
 
+        address oldFactory = factory;
+
         factory = _factory;
+
+        emit FactoryChanged(oldFactory, factory);
     }
 
     function changeRouter(address _router) external onlyOwner {
@@ -158,7 +198,11 @@ contract Marketplace is Ownable {
         require(_router != wbnb, "WBNB address");
         require(_router != factory, "Factory address");
 
+        address oldRouter = router;
+
         router = _router;
+
+        emit RouterChanged(oldRouter, router);
     }
 
     function changeWBNB(address _wbnb) external onlyOwner {
@@ -168,7 +212,11 @@ contract Marketplace is Ownable {
         require(_wbnb != router, "Router address");
         require(_wbnb != factory, "Factory address");
 
+        address oldWBNB = wbnb;
+
         wbnb = _wbnb;
+
+        emit WBNBChanged(oldWBNB, wbnb);
     }
 
     function mint(
@@ -176,8 +224,8 @@ contract Marketplace is Ownable {
         uint256 nftId,
         uint256 amount,
         string memory symbol,
-        bool isInternal
-    ) external payable {
+        bool isExternal
+    ) public payable {
         uint256 res;
         string memory tokenName = "FNFT";
 
@@ -190,12 +238,15 @@ contract Marketplace is Ownable {
             res = msg.value.sub(mintingFee);
         }
 
-        if (isInternal) {
+        if (isExternal) {
             IERC721(nft).safeTransferFrom(msg.sender, address(this), nftId);
         }
 
-        ERC20 newToken = new FNFT("FNFT", symbol, amount);
+        ERC20 newToken = new FNFT("Fungible Non Fungible", symbol, amount);
         fnfts[address(newToken)] = true;
+
+        emit TokensMinted(nft, nftId, address(newToken), amount, symbol);
+
         this.createPairAndAddLiquidity{value: res}(address(newToken));
     }
 
@@ -203,23 +254,50 @@ contract Marketplace is Ownable {
         string memory _tokenURI,
         uint256 amount,
         uint256 minLevel,
-        string memory symbol,
-        bool isInternal
+        string memory symbol
     ) external payable {
         require(msg.value > createNftFee + mintingFee, "Not enough msg.value");
         require(minLevel > (amount / 2) * 10**8 + 1, "Level so low");
-        require(minLevel <= (amount * 90) / 100 * 10**8, "Level so high");
+        require(minLevel <= ((amount * 90) / 100) * 10**8, "Level so high");
 
         _tokenIds.increment();
 
         uint256 currentId = _tokenIds.current();
 
         NFT(fnf).awardItem(address(this), _tokenURI);
-        this.mint(address(fnf), currentId, amount, symbol, isInternal);
+
+        emit NFTCreated(fnf, currentId, _tokenURI);
+
+        this.mint{value: msg.value}(fnf, currentId, amount, symbol, false);
+
         userData[msg.sender][currentId].tokenId = currentId;
         userData[msg.sender][currentId]._tokenURI = _tokenURI;
         userData[msg.sender][currentId].amount = amount;
         userData[msg.sender][currentId].minLevel = minLevel;
         userData[msg.sender][currentId].symbol = symbol;
+    }
+
+    function changeMintingFee(uint256 _mintingFee) external onlyOwner {
+        uint256 oldMintingFee = mintingFee;
+
+        mintingFee = _mintingFee;
+
+        emit MintingFeeChanged(oldMintingFee, mintingFee);
+    }
+
+    function changeSymbolFee(uint256 _symbolFee) external onlyOwner {
+        uint256 oldSymbolFee = symbolFee;
+
+        symbolFee = _symbolFee;
+
+        emit SymbolFeeChanged(oldSymbolFee, symbolFee);
+    }
+
+    function changeCreateNftFee(uint256 _createNftFee) external onlyOwner {
+        uint256 oldCreateNftFee = symbolFee;
+
+        createNftFee = _createNftFee;
+
+        emit CreateNftFeeChanged(oldCreateNftFee, createNftFee);
     }
 }

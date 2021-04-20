@@ -25,6 +25,7 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
       from: deployer,
+      gasPrice: 10000000000, // 10 gwei
     },
     mainnet: {
       provider: () =>
@@ -34,6 +35,7 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,
       from: deployer,
+      gasPrice: 10000000000, // 10 gwei
     },
   },
 
