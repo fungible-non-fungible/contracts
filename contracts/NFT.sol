@@ -29,6 +29,7 @@ contract NFT is ERC721, Ownable {
             _exists(tokenId),
             "ERC721Metadata: URI set of nonexistent token"
         );
+
         _tokenURIs[tokenId] = _tokenURI;
     }
 
@@ -62,7 +63,7 @@ contract NFT is ERC721, Ownable {
         return string(abi.encodePacked(base, tokenId.toString()));
     }
 
-    function awardItem(address user, string memory _tokenURI)
+    function addItem(address user, string memory _tokenURI)
         public
         returns (uint256)
     {

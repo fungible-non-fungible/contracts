@@ -2,8 +2,8 @@
 pragma solidity >=0.6.2;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
@@ -27,16 +27,17 @@ contract Marketplace is Ownable {
     uint256 public createNftFee;
 
     struct userStruct {
-        uint256 tokenId;
-        string _tokenURI;
+        address fnft;
         uint256 amount;
         uint256 minLevel;
-        string symbol;
+        uint256 PSFinalPrice;
     }
 
     mapping(address => address[]) public pairs;
     mapping(address => bool) public fnfts;
-    mapping(address => mapping(uint256 => userStruct)) public userData;
+    mapping(address => mapping(uint256 => userStruct)) public nftData;
+    mapping(address => mapping(address => mapping(uint256 => userStruct)))
+        public userData;
 
     event PairCreated(address indexed pair, address indexed user);
     event LiquidityAdded(
@@ -224,8 +225,12 @@ contract Marketplace is Ownable {
         uint256 nftId,
         uint256 amount,
         string memory symbol,
+        uint256 minLevel,
         bool isExternal
     ) public payable {
+        require(minLevel > (amount / 2) * 10**8 + 1, "Level so low");
+        require(minLevel <= ((amount * 90) / 100) * 10**8, "Level so high");
+
         uint256 res;
         string memory tokenName = "FNFT";
 
@@ -245,6 +250,14 @@ contract Marketplace is Ownable {
         ERC20 newToken = new FNFT("Fungible Non Fungible", symbol, amount);
         fnfts[address(newToken)] = true;
 
+        userData[msg.sender][nft][nftId].fnft = address(newToken);
+        userData[msg.sender][nft][nftId].amount = amount;
+        userData[msg.sender][nft][nftId].minLevel = minLevel;
+
+        nftData[nft][nftId].fnft = address(newToken);
+        nftData[nft][nftId].amount = amount;
+        nftData[nft][nftId].minLevel = minLevel;
+
         emit TokensMinted(nft, nftId, address(newToken), amount, symbol);
 
         this.createPairAndAddLiquidity{value: res}(address(newToken));
@@ -257,24 +270,23 @@ contract Marketplace is Ownable {
         string memory symbol
     ) external payable {
         require(msg.value > createNftFee + mintingFee, "Not enough msg.value");
-        require(minLevel > (amount / 2) * 10**8 + 1, "Level so low");
-        require(minLevel <= ((amount * 90) / 100) * 10**8, "Level so high");
 
         _tokenIds.increment();
 
         uint256 currentId = _tokenIds.current();
 
-        NFT(fnf).awardItem(address(this), _tokenURI);
+        NFT(fnf).addItem(address(this), _tokenURI);
 
         emit NFTCreated(fnf, currentId, _tokenURI);
 
-        this.mint{value: msg.value}(fnf, currentId, amount, symbol, false);
-
-        userData[msg.sender][currentId].tokenId = currentId;
-        userData[msg.sender][currentId]._tokenURI = _tokenURI;
-        userData[msg.sender][currentId].amount = amount;
-        userData[msg.sender][currentId].minLevel = minLevel;
-        userData[msg.sender][currentId].symbol = symbol;
+        this.mint{value: msg.value}(
+            fnf,
+            currentId,
+            amount,
+            symbol,
+            minLevel,
+            false
+        );
     }
 
     function changeMintingFee(uint256 _mintingFee) external onlyOwner {
