@@ -6,7 +6,7 @@
   "dependencies": {
     "@openzeppelin/contracts": "^4.0.0",
     "@openzeppelin/test-helpers": "^0.5.10",
-    "@truffle/hdwallet-provider": "^1.2.6",
+    "@truffle/hdwallet-provider": "1.2.3",
     "dotenv": "^8.2.0",
     "eth-gas-reporter": "^0.2.22",
     "ganache-cli": "^6.12.2",
@@ -20,7 +20,7 @@
     "migrate:testnet": "yarn truffle migrate --network testnet",
     "migrate:mainnet": "yarn truffle migrate --network mainnet",
     "verify": "yarn truffle run verify",
-    "start-sandbox": "yarn ganache-cli -f https://data-seed-prebsc-1-s1.binance.org:8545/ -u 0x9540218d02dC864B5Ba660c99709932C3F08621D",
+    "start-sandbox": "yarn ganache-cli -f https://data-seed-prebsc-1-s1.binance.org:8545/ -u 0x91f249967f8722E325d28ec2391A45A59e9C6e05",
     "test": "yarn truffle test"
   }
 }

@@ -59,7 +59,7 @@ contract Marketplace is Ownable {
         uint256 amount,
         string indexed symbol
     );
-    event NFTCreated(address fnf, uint256 nftId, string indexed _tokenURI);
+    event NFTCreated(address indexed fnf, uint256 indexed nftId, string _tokenURI);
     event MintingFeeChanged(
         uint256 indexed oldMintingFee,
         uint256 indexed newMintingFee
